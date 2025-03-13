@@ -24,7 +24,7 @@ setwd("C:/Users/balak/Desktop/ATACseq_Analysis")
 
 #Load file describing CnT samples
 
-atac_samples <- as.data.frame(read.table("ATAC_C2C12_A485.samples.merged.txt", sep="\t", header=TRUE))
+atac_samples <- as.data.frame(read.table("./processed_data/ATAC_C2C12_A485.samples.merged.txt", sep="\t", header=TRUE))
 
 # Reorder samples so order is DMSO, 3h, 6h. 
 # Note: Blais_116 should be excluded from analysis
@@ -41,7 +41,7 @@ atac_samples$ShortName <- paste(atac_samples$Treatment, atac_samples$Replicate_n
 
 #Load feature counts data; containing the number of sequencing reads that overlap with ATAC-seq peaks
 
-featureCounts_tables <- read.table("A-485_ATAC_counts.read2pos5_bothEnds_noDups.Six1.peaks.txt")
+featureCounts_tables <- read.table("./processed_data/A-485_ATAC_counts.read2pos5_bothEnds_noDups.Six1.peaks.txt")
 
 #Again, reorder samples so order is DMSO, 3h, 6h. 
 # Note: Blais_116 should be excluded from analysis
@@ -81,29 +81,37 @@ cat("Initial peaks:", nrow(align_counts$counts), " | Retained peaks:", nrow(alig
 #Generate RLE and PCA Plots to Evaluate Optimal Normalization Methods
 
 #Create R function for PCA plot creation 
-								plotPCA1234 <- function (object, pc_to_plot=c(1,2), labels = FALSE, isLog = FALSE, ...)
-								{
-								if (!isLog) {
-								  Y <- apply(log(object + 1), 1, function(y) scale(y, center = TRUE, scale = FALSE))
-								}
-								else {
-								  Y <- apply(object, 1, function(y) scale(y, center = TRUE, scale = FALSE))
-								}
-								s <- svd(Y)
-								percent <- s$d^2/sum(s$d^2) * 100
-								labs <- sapply(seq_along(percent), function(i) {
-								  paste("PC ", i, " (", round(percent[i], 2), "%)", sep = "")
-								})
-								if (labels) {
-								  plot(s$u[, pc_to_plot[1]], s$u[, pc_to_plot[2]], type = "n", ..., xlab = labs[pc_to_plot[1]], ylab = labs[pc_to_plot[2]])
-								  text(s$u[, pc_to_plot[1]], s$u[, pc_to_plot[2]], labels = colnames(object), ...)
-								}
-								else {
-								  plot(s$u[, pc_to_plot[1]], s$u[, pc_to_plot[2]], ..., xlab = labs[pc_to_plot[1]], ylab = labs[pc_to_plot[2]])
-								}
-								}
-
-
+plotPCA1234 <- function(object, pc_to_plot = c(1, 2), labels = FALSE, isLog = FALSE, ...) {
+  
+  # Apply log transformation if data is not already log-transformed
+  Y <- if (!isLog) {
+    apply(log(object + 1), 1, function(y) scale(y, center = TRUE, scale = FALSE))
+  } else {
+    apply(object, 1, function(y) scale(y, center = TRUE, scale = FALSE))
+  }
+  
+  # Perform Singular Value Decomposition (SVD)
+  s <- svd(Y)
+  
+  # Calculate percentage variance explained by each principal component
+  percent <- (s$d^2 / sum(s$d^2)) * 100
+  
+  # Generate labels for principal components
+  labs <- sapply(seq_along(percent), function(i) {
+    paste0("PC ", i, " (", round(percent[i], 2), "%)")
+  })
+  
+  # Plot PCA
+  if (labels) {
+    plot(s$u[, pc_to_plot[1]], s$u[, pc_to_plot[2]], type = "n", 
+         xlab = labs[pc_to_plot[1]], ylab = labs[pc_to_plot[2]], ...)
+    text(s$u[, pc_to_plot[1]], s$u[, pc_to_plot[2]], labels = colnames(object), ...)
+  } else {
+    plot(s$u[, pc_to_plot[1]], s$u[, pc_to_plot[2]], 
+         xlab = labs[pc_to_plot[1]], ylab = labs[pc_to_plot[2]], ...)
+  }
+}
+			
 # Define the design matrix to include the effect of DrugDose
 design_a = model.matrix(~0 + DrugDose, data = droplevels(atac_samples))
 
@@ -185,7 +193,7 @@ table_log2_ruvrk1_medCenter <- table_log2_ruvrk1 - apply(table_log2_ruvrk1, 1, m
 m <- table_log2_ruvrk1_medCenter
 
 # Load cluster information from a saved R data file
-load(file='cluster_info_k=3.Rda')
+load(file='./processed_data/cluster_info_k=3.Rda')
 p300_cluster_info <- cluster_info
 
 # Define gap positions for clustering based on cluster sizes
